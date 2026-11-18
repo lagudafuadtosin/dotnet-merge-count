@@ -34,13 +34,13 @@ Contributors who had a pull request merged, and how many had only one:
 Two groups change the contributor count, so the result is given as a range.
 
 1. Contributors with write access (they merged some of their own pull requests). Counted as contributors above. Moved to staff, the contributor counts become roslyn 85, runtime 606, sdk 47.
-2. dotnet organization members with no Microsoft signal. Counted as staff above. Moved to contributors, the counts become roslyn 283, runtime 959, sdk 60.
+2. dotnet organization members with no Microsoft signal. Counted as staff above. Moved to contributors, the counts become roslyn 283, runtime 959, sdk 61 (corrected 18 November 2026 from 60, an arithmetic slip found when `check_tables.py` rebuilt the numbers from the data).
 
 | Repository | Copilot | Contributors, low | Contributors, high | Copilot to contributors |
 |---|---|---|---|---|
 | dotnet/roslyn | 167 | 85 | 283 | 0.59 to 1.96 |
 | dotnet/runtime | 1,101 | 606 | 959 | 1.15 to 1.82 |
-| dotnet/sdk | 201 | 47 | 60 | 3.35 to 4.28 |
+| dotnet/sdk | 201 | 47 | 61 | 3.30 to 4.28 |
 
 Rows in either group are marked in the `uncertain` column of the data.
 
@@ -55,15 +55,43 @@ Rows in either group are marked in the `uncertain` column of the data.
 
 No email addresses or profile text are included, only the kind of signal that matched.
 
-## Method
+## How to replicate
+
+There are two ways, depending on what you want to check.
+
+### 1. Check the numbers in the article (one minute, no GitHub sign-in)
+
+Needs Python 3.10 or newer, nothing else.
+
+```
+python scripts/check_tables.py --verify
+```
+
+It rebuilds Table 1, Table 2 and the ranges above from `data/merged-prs.csv` and compares every number with the published ones. It ends with "All published numbers reproduced exactly." or lists any difference.
+
+### 2. Collect and classify everything again from GitHub (about 15 minutes)
+
+Needs Python 3.10 or newer and the [GitHub CLI](https://cli.github.com/) signed in (`gh auth login`). No other packages.
+
+```
+python scripts/run_all.py
+```
+
+It runs the five steps below in order, writes `data/merged-prs-rerun.csv` (the archived `data/merged-prs.csv` is never touched), prints the tables for the new run, and lists every pull request whose group differs from the archive. Profiles, company fields and organization memberships change over time, so a later run can differ slightly from the archive, which was collected on 31 October 2026.
+
+### The five steps
 
 1. `scripts/fetch.py <owner/repo>` lists merged pull requests with the GitHub GraphQL search API in weekly slices, split into days where a week reaches the 1,000 result cap. Every slice's reported count is checked against the rows returned.
 2. `scripts/profiles.py` reads each human author's public profile (company, bio) and public membership of the microsoft and dotnet organizations.
 3. `scripts/emails.py` reads commit author emails on up to 10 pull requests per author who had no profile signal, looking for @microsoft.com.
-4. The merged-by login of each contributor pull request was read with a separate GraphQL query to find authors who merge their own work (`mergedby.json`, not included).
-5. `scripts/classify.py` applies the rules and writes the CSV.
+4. `scripts/mergedby.py` reads who merged each contributor pull request, to find authors who merge their own work (write access).
+5. `scripts/classify.py` applies the rules and writes the CSV. It runs once before steps 3 and 4 (they need its list of contributors) and once after.
 
-The scripts need the GitHub CLI (`gh`) signed in. They were run on 31 October 2026. Profiles and memberships change, so a later run may differ slightly.
+`scripts/check_tables.py` turns any of these CSV files into the tables.
+
+## Licence
+
+The code is under the MIT licence (`LICENSE`). The data in `data/` is under [Creative Commons Attribution 4.0](https://creativecommons.org/licenses/by/4.0/): you can reuse it for any purpose if you credit "Fuad Laguda, dotnet-merge-count".
 
 ## Author
 

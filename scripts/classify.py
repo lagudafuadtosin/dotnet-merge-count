@@ -1,8 +1,10 @@
 import json, collections, csv, re
 REPOS=['dotnet_roslyn','dotnet_runtime','dotnet_sdk']
 prof=json.load(open('profiles.json'))
-EM=json.load(open('emails.json'))
-MB=json.load(open('mergedby.json'))
+import os
+# emails.json and mergedby.json come from steps 3 and 4, which need a first classify run. On that first run they do not exist yet.
+EM=json.load(open('emails.json')) if os.path.exists('emails.json') else {}
+MB=json.load(open('mergedby.json')) if os.path.exists('mergedby.json') else {}
 data={r:json.load(open(r+'.json')) for r in REPOS}
 AUTOMATION={'dotnet-bot','dotnet-maestro','github-actions','dependabot','dotnet-maestro-bot','dotnet-policy-service','msftbot','dotnet-issue-labeler','dotnet-release-bot','dotnet-oneloc-localization','csigs','vs-mobiletools-engineering-service2'}
 COPILOT={'copilot-swe-agent','Copilot','copilot'}
@@ -59,9 +61,31 @@ for r in REPOS:
                 staff_uncertain=sorted([(l,ev[l][2]) for l in ev if ev[l][0]=='MICROSOFT STAFF' and ev[l][2]]),
                 slices=data[r]['log'])
 json.dump(out,open('summary.json','w'),indent=1)
-with open('../data/merged-prs.csv','w',newline='',encoding='utf-8') as f:
-    w=csv.writer(f); w.writerow(['repo','pr_number','author_login','author_type','author_association','merged_at','is_copilot_agent','bucket','rule_matched','uncertain'])
-    w.writerows(csvrows)
+# The published CSV holds no profile text: company and bio wording are reduced to the kind of signal that matched.
+GROUP={'MICROSOFT STAFF':'microsoft_staff','OUTSIDE HUMAN':'contributor','BOT':'bot','COPILOT AGENT':'copilot'}
+def pub_rule(rule):
+    out=[]
+    for part in rule.split('; '):
+        if part.startswith('company: '): part='profile company names Microsoft'
+        elif part.startswith('no Microsoft signal'): part='no Microsoft signal'
+        out.append(part)
+    return '; '.join(out)
+def pub_unc(unc):
+    out=[]
+    for part in [u for u in unc.split('; ') if u]:
+        if part.startswith('high volume'): part='10 or more merges, no stated employer'
+        elif part.startswith('WRITE ACCESS'): part='write access (merged own pull requests)'
+        elif part.startswith('dotnet MEMBER only'): part='dotnet org member, no Microsoft signal'
+        elif part=='repo COLLABORATOR': continue
+        elif part=='ex-Microsoft in profile': part='former Microsoft employee in profile'
+        out.append(part)
+    return '; '.join(out)
+# run_all.py sets OUT_CSV so a re-run never overwrites the archived data.
+with open(os.environ.get('OUT_CSV','../data/merged-prs.csv'),'w',newline='',encoding='utf-8') as f:
+    w=csv.writer(f); w.writerow(['repo','pr_number','author_login','author_type','author_association','merged_at','group','rule_matched','uncertain'])
+    for row in csvrows:
+        repo,num,lg,typ,assoc,merged,_,b,rule,unc=row
+        w.writerow([repo,num,lg,typ,assoc,merged,GROUP[b],pub_rule(rule),pub_unc(unc)])
 for r in REPOS:
     o=out[r]; t=o['total']
     print(r,t,{k:(v,round(100*v/t,1)) for k,v in o['buckets'].items()},'outsiders',len(o['outside']),'ones',o['ones'],'staff authors',o['staff_authors'])
