@@ -55,6 +55,10 @@ Rows in either group are marked in the `uncertain` column of the data.
 
 No email addresses or profile text are included, only the kind of signal that matched.
 
+## Archived copy
+
+Version 1.0 of this repository, data and code, is archived on Zenodo: [doi.org/10.5281/zenodo.24353325](https://doi.org/10.5281/zenodo.24353325)
+
 ## How to replicate
 
 There are two ways, depending on what you want to check.
